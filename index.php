@@ -4,7 +4,7 @@
 $telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
 
 // ======== BUSCA TOKEN IA VIA RENTR Y ========
-$token_url = "https://rentry.co/MeuExu/raw";
+$token_url = "https://pastebin.com/raw/DiMf2G33";
 $openai_key = trim(@file_get_contents($token_url));
 
 if (!$openai_key) {
