@@ -66,7 +66,7 @@ $payload = [
         ["role"=>"system","content"=>$system_prompt],
         ["role"=>"user","content"=>$message]
     ],
-    "max_completion_tokens" => 300,
+    "max_completion_tokens" => 2000,
     "temperature" => 0.85
 ];
 
