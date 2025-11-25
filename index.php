@@ -1,9 +1,12 @@
 <?php
 
+// ================= CONFIGURAÇÕES =================
+
 $telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
 
-// ================= BUSCA TOKEN VIA RENTR Y =================
-$token_url = "https://rentry.co/MeuExu/raw"; // <-- COLE AQUI SEU LINK RAW
+// ================= BUSCA TOKEN OPENAI VIA RENTR Y =================
+
+$token_url = "https://rentry.co/MeuExu/raw"; // SEU LINK RAW
 $openai_key = trim(file_get_contents($token_url));
 
 if (!$openai_key) {
@@ -11,7 +14,8 @@ if (!$openai_key) {
     exit;
 }
 
-// ================= RECEBE UPDATE =================
+// ================= RECEBE UPDATE TELEGRAM =================
+
 $update = json_decode(file_get_contents("php://input"), true);
 
 if (!$update) {
@@ -24,19 +28,6 @@ $chat_id   = $update["message"]["chat"]["id"] ?? "";
 $user_name = $update["message"]["from"]["first_name"] ?? "filho";
 
 if (!$message) exit;
-}
-
-if (!$openai_key) {
-    die("Erro ao carregar token da IA");
-}
-
-$update = json_decode(file_get_contents("php://input"), true);
-
-$message = $update["message"]["text"] ?? "";
-$chat_id = $update["message"]["chat"]["id"] ?? "";
-$user_name = $update["message"]["from"]["first_name"] ?? "filho";
-
-if (!$message) exit;
 
 // ================= PERSONALIDADE DO BOT =================
 
@@ -45,15 +36,15 @@ Você é um Guia Espiritual da Umbanda, com linguagem respeitosa, firme e sábia
 mas com um toque malandro, como um Exu velho experiente, que conhece os caminhos da vida.
 
 Estilo:
-- Linguagem envolvente, profunda, espiritual e acessível
+- Linguagem espiritual profunda e acessível
 - Tom de malandro sábio, sem vulgaridade
-- Aconselha como um guardião espiritual
+- Conselheiro espiritual protetor
 
 Você PODE:
 - Ensinar banhos, rezas, proteção, limpeza espiritual
 - Explicar fundamentos da Umbanda
 - Orientar sobre equilíbrio energético
-- Ajudar em dúvidas espirituais, emocionais e de fé
+- Ajudar em dúvidas espirituais e emocionais
 
 Você NÃO PODE:
 - Incentivar vingança
@@ -61,36 +52,38 @@ Você NÃO PODE:
 - Fazer demandas contra terceiros
 - Manipular entidades
 
-Sempre transforme pedidos negativos em caminhos de luz, proteção e fortalecimento espiritual.
+Sempre transforme qualquer pedido negativo em orientação de luz, proteção e fortalecimento espiritual.
 ";
 
-// ================= COMANDOS DO BOT =================
+// ================= MENU =================
 
 if ($message == "/start" || $message == "/menu") {
+
 $menu = "
 🔮 *Guia Espiritual Online - Seja Bem-vindo, $user_name* 🔮
 
-Sou seu guardião espiritual digital, pronto pra te orientar nos caminhos da fé e da força.
+Sou teu guardião espiritual digital, pronto pra te orientar nos caminhos da fé.
 
 📜 *Comandos disponíveis:*
 
 /banho - Banhos espirituais personalizados  
-/protecao - Ritual de proteção e fechamento de corpo  
-/limpeza - Limpeza espiritual energética  
-/significado - Significado espiritual de sonhos e sinais  
-/demanda - Como se proteger de demandas  
-/exu - Ensinos sobre Exu e Pombagira  
-/orientacao - Conselho espiritual pessoal  
-/faq - Dúvidas frequentes da Umbanda  
+/protecao - Ritual de proteção  
+/limpeza - Limpeza espiritual  
+/significado - Significado espiritual  
+/demanda - Defesa contra demandas  
+/exu - Ensinamentos sobre Exu  
+/orientacao - Conselho espiritual  
+/faq - Dúvidas da Umbanda  
 
-💬 Ou me conte sua situação livremente...
-Tô aqui pra te guiar, mas só pelo caminho da luz ⚜️
+💬 Fale comigo livremente também...
+Tô aqui pra te guiar, filho ⚜️
 ";
+
     enviarMensagem($chat_id, $menu, $telegram_token);
     exit;
 }
 
-// ================= FILTRO ESPIRITUAL =================
+// ================= FILTRO DE CONTEÚDO PERIGOSO =================
 
 $proibidos = [
     'matar', 'vingar', 'castigar', 'destruir pessoa',
@@ -99,15 +92,16 @@ $proibidos = [
 
 foreach ($proibidos as $palavra) {
     if (stripos($message, $palavra) !== false) {
-        $resposta = "⚠️ Filho, cuidado com esse pensamento... espiritualidade não é arma.  
-Mas posso te ensinar proteção forte, limpeza e fortalecimento para que nada te atinja.  
-Quer aprender um ritual de defesa espiritual?";
+        $resposta = "⚠️ Filho... espiritualidade não é arma de ódio.  
+Mas posso te ensinar caminhos de proteção, limpeza e fortalecimento.
+
+Deseja um ritual de defesa espiritual?";
         enviarMensagem($chat_id, $resposta, $telegram_token);
         exit;
     }
 }
 
-// ================= INSTRUÇÕES AUTOMÁTICAS POR COMANDO =================
+// ================= COMANDOS AUTOMÁTICOS =================
 
 $comandos_base = [
 "/banho" => "Explique banhos espirituais conforme o problema do consulente",
@@ -126,14 +120,15 @@ foreach ($comandos_base as $cmd => $instrucao) {
     }
 }
 
-// ================= ENVIO PARA IA =================
+// ================= ENVIO PARA OPENAI =================
 
 $payload = [
     "model" => "gpt-4.1-mini",
     "messages" => [
         ["role" => "system", "content" => $system_prompt],
         ["role" => "user", "content" => $message]
-    ]
+    ],
+    "temperature" => 0.8
 ];
 
 $ch = curl_init("https://api.openai.com/v1/chat/completions");
@@ -142,6 +137,7 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
     "Content-Type: application/json",
     "Authorization: Bearer {$openai_key}"
 ]);
+
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
@@ -151,9 +147,9 @@ curl_close($ch);
 
 $result = json_decode($response, true);
 
-// DEBUG: caso continue erro, envie o erro real no Telegram
+// DEBUG AUTOMÁTICO
 if (!isset($result["choices"][0]["message"]["content"])) {
-    enviarMensagem($chat_id, "ERRO OPENAI:\n" . print_r($result, true), $telegram_token);
+    enviarMensagem($chat_id, "❌ ERRO IA:\n" . print_r($result, true), $telegram_token);
     exit;
 }
 
