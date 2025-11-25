@@ -153,11 +153,11 @@ if ($entidade && $groq_key) {
         "temperature" => 0.85
     ];
 
-    $ch = curl_init("https://api.groq.com/v1/chat/completions");
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Content-Type: application/json",
-        "Authorization: Bearer {$groq_key}"
-    ]);
+   $ch = curl_init("https://api.groq.com/openai/v1/chat/completions");
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "Content-Type: application/json",
+    "Authorization: Bearer {$groq_key}"
+]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
