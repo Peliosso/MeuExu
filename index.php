@@ -2,14 +2,33 @@
 // ================== CONFIGURAÇÃO ==================
 $telegram_token = getenv('TELEGRAM_TOKEN'); // Token do bot Telegram
 $openai_key = getenv('OPENAI_KEY');         // Token da OpenAI
+$log_file = __DIR__ . '/log.txt';           // Arquivo de log
 
 // ================== RECEBE UPDATE ==================
 $content = file_get_contents("php://input");
 $update = json_decode($content, true);
 
+// Função para registrar log
+function write_log($message){
+    global $log_file;
+    $time = date('Y-m-d H:i:s');
+    file_put_contents($log_file, "[$time] $message\n", FILE_APPEND);
+}
+
+// Verifica se chegou mensagem
 if(isset($update['message'])){
     $chat_id = $update['message']['chat']['id'];
     $text = $update['message']['text'];
+
+    write_log("Mensagem recebida de $chat_id: $text");
+
+    // ================== COMANDO /START ==================
+    if(strtolower(trim($text)) === '/start'){
+        $welcome = "Salve, meu filho! Eu sou o Preto Velho do bot da Umbanda.\nMe pergunte o que quiser e eu darei conselhos espirituais e malandragem com sabedoria.";
+        file_get_contents("https://api.telegram.org/bot$telegram_token/sendMessage?chat_id=$chat_id&text=".urlencode($welcome));
+        write_log("Resposta enviada a $chat_id: $welcome");
+        exit;
+    }
 
     // ================== PROMPT DA IA ==================
     $prompt = <<<EOT
@@ -39,4 +58,5 @@ EOT;
 
     // ================== ENVIA RESPOSTA PARA TELEGRAM ==================
     file_get_contents("https://api.telegram.org/bot$telegram_token/sendMessage?chat_id=$chat_id&text=".urlencode($reply));
+    write_log("Resposta enviada a $chat_id: $reply");
 }
