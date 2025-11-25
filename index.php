@@ -3,10 +3,32 @@
 $telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
 
 // BUSCA DO TOKEN VIA API EXTERNA
+function buscarTokenRemoto($url) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $response = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        return null;
+    }
+
+    curl_close($ch);
+    return $response;
+}
+
 $token_url = "https://meuexu.rf.gd/token.json";
-$conteudo_token = file_get_contents($token_url);
-$dados_token = json_decode($conteudo_token, true);
+$respostaToken = buscarTokenRemoto($token_url);
+
+$dados_token = json_decode($respostaToken, true);
 $openai_key = $dados_token['token'] ?? '';
+
+if (!$openai_key) {
+    enviarMensagem($chat_id ?? '0', "❌ ERRO: Não foi possível carregar token remoto.", $telegram_token);
+    exit;
+}
 
 if (!$openai_key) {
     die("Erro ao carregar token da IA");
