@@ -3,19 +3,18 @@
 // ================= CONFIGURAÇÕES =================
 
 $telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
-$gemini_key = "AIzaSyAYbLaedTJ-LLsAJsWVfJlDSJTmygQlsJQ";
+$gemini_key     = "AIzaSyAYbLaedTJ-LLsAJsWVfJlDSJTmygQlsJQ";
 
 // ================= RECEBE UPDATE =================
 
 $update = json_decode(file_get_contents("php://input"), true);
-
 if (!$update) exit;
 
 $message   = $update["message"]["text"] ?? "";
 $chat_id   = $update["message"]["chat"]["id"] ?? "";
 $user_name = $update["message"]["from"]["first_name"] ?? "filho";
 
-if (!$message) exit;
+if (!$message || !$chat_id) exit;
 
 // ================= PERSONALIDADE ESPIRITUAL =================
 
@@ -60,7 +59,7 @@ Sou teu guardião espiritual digital.
 /orientacao  
 /faq  
 
-Ou fale livremente comigo, filho ⚜️
+Ou fale comigo livremente, filho ⚜️
 ";
 
 enviarMensagem($chat_id, $menu, $telegram_token);
@@ -102,20 +101,17 @@ foreach ($comandos_base as $cmd => $instrucao) {
 
 // ================= ENVIO PARA GEMINI =================
 
-// ================= ENVIO PARA GEMINI =================
-
 $payload = [
     "contents" => [
         [
-            "role" => "user",
             "parts" => [
-                ["text" => $system_prompt . "\n\nPergunta: " . $message]
+                ["text" => $system_prompt . "\n\nPergunta do consulente: " . $message]
             ]
         ]
     ],
     "generationConfig" => [
-        "temperature" => 0.8,
-        "maxOutputTokens" => 2048
+        "temperature" => 0.7,
+        "maxOutputTokens" => 1024
     ]
 ];
 
@@ -132,9 +128,12 @@ curl_close($ch);
 
 $data = json_decode($response, true);
 
-// ===== DEBUG AUTOMÁTICO =====
+// ================= DEBUG =================
+
 if (!isset($data["candidates"][0]["content"]["parts"][0]["text"])) {
-    enviarMensagem($chat_id, "❌ ERRO GEMINI:\n".print_r($data,true), $telegram_token);
+    enviarMensagem($chat_id,
+    "❌ ERRO GEMINI:\n".print_r($data,true),
+    $telegram_token);
     exit;
 }
 
@@ -147,5 +146,11 @@ enviarMensagem($chat_id, $resposta, $telegram_token);
 // ================= FUNÇÃO TELEGRAM =================
 
 function enviarMensagem($chat_id, $texto, $token){
-    file_get_contents("https://api.telegram.org/bot{$token}/sendMessage?chat_id={$chat_id}&text=".urlencode($texto)."&parse_mode=Markdown");
+    $url = "https://api.telegram.org/bot{$token}/sendMessage";
+    $params = [
+        'chat_id' => $chat_id,
+        'text' => $texto,
+        'parse_mode' => 'Markdown'
+    ];
+    file_get_contents($url . "?" . http_build_query($params));
 }
