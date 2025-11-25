@@ -135,7 +135,7 @@ if (!isset($result["choices"][0]["message"]["content"])) {
     exit;
 }
 
-$resposta = $result["choices"][0]["message"]["content"]; ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
+$resposta = $result["choices"][0]["message"]["content"] ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
 
 enviarMensagem($chat_id, $resposta, $telegram_token);
 
