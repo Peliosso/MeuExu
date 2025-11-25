@@ -102,17 +102,24 @@ foreach ($comandos_base as $cmd => $instrucao) {
 
 // ================= ENVIO PARA GEMINI =================
 
+// ================= ENVIO PARA GEMINI =================
+
 $payload = [
     "contents" => [
         [
+            "role" => "user",
             "parts" => [
                 ["text" => $system_prompt . "\n\nPergunta: " . $message]
             ]
         ]
+    ],
+    "generationConfig" => [
+        "temperature" => 0.8,
+        "maxOutputTokens" => 2048
     ]
 ];
 
-$url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=".$gemini_key;
+$url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=".$gemini_key;
 
 $ch = curl_init($url);
 curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
@@ -125,7 +132,13 @@ curl_close($ch);
 
 $data = json_decode($response, true);
 
-$resposta = $data["candidates"][0]["content"]["parts"][0]["text"] ?? "⚠️ Os guias estão em silêncio agora...";
+// ===== DEBUG AUTOMÁTICO =====
+if (!isset($data["candidates"][0]["content"]["parts"][0]["text"])) {
+    enviarMensagem($chat_id, "❌ ERRO GEMINI:\n".print_r($data,true), $telegram_token);
+    exit;
+}
+
+$resposta = $data["candidates"][0]["content"]["parts"][0]["text"];
 
 // ================= ENVIA AO TELEGRAM =================
 
