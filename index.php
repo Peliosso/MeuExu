@@ -1,7 +1,16 @@
 <?php
 
 $telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
-$openai_key     = "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";
+
+// BUSCA DO TOKEN VIA API EXTERNA
+$token_url = "https://meuexu.rf.gd/token.json";
+$conteudo_token = file_get_contents($token_url);
+$dados_token = json_decode($conteudo_token, true);
+$openai_key = $dados_token['token'] ?? '';
+
+if (!$openai_key) {
+    die("Erro ao carregar token da IA");
+}
 
 $update = json_decode(file_get_contents("php://input"), true);
 
