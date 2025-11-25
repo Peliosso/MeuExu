@@ -1,23 +1,15 @@
 <?php
 
-// ================= CONFIG =================
+// ================= CONFIGURAÇÕES =================
+
 $telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
+$gemini_key = "AIzaSyAYbLaedTJ-LLsAJsWVfJlDSJTmygQlsJQ";
 
-// ======== BUSCA TOKEN IA VIA RENTR Y ========
-$token_url = "https://pastebin.com/raw/DiMf2G33";
-$openai_key = trim(@file_get_contents($token_url));
+// ================= RECEBE UPDATE =================
 
-if (!$openai_key) {
-    file_put_contents("erro_token.txt", "Token IA não encontrado");
-    exit;
-}
-
-// ================= UPDATE TELEGRAM =================
 $update = json_decode(file_get_contents("php://input"), true);
 
-if (!$update || !isset($update["message"])) {
-    exit;
-}
+if (!$update) exit;
 
 $message   = $update["message"]["text"] ?? "";
 $chat_id   = $update["message"]["chat"]["id"] ?? "";
@@ -25,77 +17,105 @@ $user_name = $update["message"]["from"]["first_name"] ?? "filho";
 
 if (!$message) exit;
 
-// ================= PERSONALIDADE IA =================
+// ================= PERSONALIDADE ESPIRITUAL =================
+
 $system_prompt = "
 Você é um Guia Espiritual da Umbanda, com linguagem respeitosa, firme e sábia,
-mas com um toque malandro, como um Exu velho experiente.
+com tom de Exu velho experiente, protetor e conselheiro.
 
 Estilo:
-- Linguagem espiritual profunda e acessível
-- Tom de malandro sábio, sem vulgaridade
-- Conselheiro espiritual protetor
+- Linguagem espiritual profunda e acolhedora
+- Tom firme, mas humilde
+- Conselheiro sábio e protetor
 
 Você PODE:
 - Ensinar banhos, rezas, proteção, limpeza espiritual
 - Explicar fundamentos da Umbanda
-- Orientar sobre equilíbrio energético
+- Orientar espiritualmente
 
 Você NÃO PODE:
 - Incentivar vingança
 - Ensinar ataques espirituais
 - Fazer demandas contra terceiros
-- Manipular entidades
 
-Sempre transforme pedidos negativos em orientação de luz.
+Sempre conduza para caminhos de luz, proteção e equilíbrio.
 ";
 
 // ================= MENU =================
+
 if ($message == "/start" || $message == "/menu") {
 
 $menu = "
-🔮 *Guia Espiritual Online — Seja Bem-vindo, $user_name* 🔮
+🔮 *Guia Espiritual Online - Seja Bem-vindo, $user_name* 🔮
 
 Sou teu guardião espiritual digital.
 
-📜 *Comandos:*
-/banho - Banhos espirituais  
-/protecao - Ritual de proteção  
-/limpeza - Limpeza espiritual  
-/exu - Ensinamentos sobre Exu  
-/orientacao - Conselho espiritual  
+📜 Comandos:
+/banho  
+/protecao  
+/limpeza  
+/significado  
+/demanda  
+/exu  
+/orientacao  
+/faq  
 
-💬 Ou fale comigo livremente...
+Ou fale livremente comigo, filho ⚜️
 ";
 
-    enviarMensagem($chat_id, $menu, $telegram_token);
-    exit;
+enviarMensagem($chat_id, $menu, $telegram_token);
+exit;
 }
 
 // ================= FILTRO =================
-$proibidos = ['matar','vingar','castigar','destruir','separar casal'];
+
+$proibidos = ['matar','vingar','castigar','destruir','arruinar','fazer sofrer'];
 
 foreach ($proibidos as $p) {
     if (stripos($message, $p) !== false) {
-        enviarMensagem($chat_id, "⚠️ Filho... não trabalho com maldade. Posso te orientar em proteção e fortalecimento espiritual.", $telegram_token);
+        enviarMensagem($chat_id,
+        "⚠️ Espiritualidade não é arma, filho.  
+Posso te guiar na proteção e fortalecimento espiritual.",
+        $telegram_token);
         exit;
     }
 }
 
-// ================= OPENAI IA =================
-$payload = [
-    "model" => "gpt-3.5-turbo",
-    "messages" => [
-        ["role" => "system", "content" => $system_prompt],
-        ["role" => "user", "content" => $message]
-    ],
-    "temperature" => 0.7
+// ================= COMANDOS =================
+
+$comandos_base = [
+"/banho" => "Explique banhos espirituais conforme o problema do consulente",
+"/protecao" => "Ensine um ritual poderoso de proteção espiritual",
+"/limpeza" => "Explique limpeza energética passo a passo",
+"/significado" => "Interprete sinais e sonhos espiritualmente",
+"/demanda" => "Explique como se proteger espiritualmente",
+"/exu" => "Explique sobre Exu e Pombagira",
+"/orientacao" => "Dê um conselho espiritual profundo",
+"/faq" => "Responda dúvidas sobre Umbanda"
 ];
 
-$ch = curl_init("https://api.openai.com/v1/chat/completions");
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "Content-Type: application/json",
-    "Authorization: Bearer {$openai_key}"
-]);
+foreach ($comandos_base as $cmd => $instrucao) {
+    if (stripos($message, $cmd) === 0) {
+        $message = $instrucao . ": " . str_replace($cmd, "", $message);
+    }
+}
+
+// ================= ENVIO PARA GEMINI =================
+
+$payload = [
+    "contents" => [
+        [
+            "parts" => [
+                ["text" => $system_prompt . "\n\nPergunta: " . $message]
+            ]
+        ]
+    ]
+];
+
+$url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=".$gemini_key;
+
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
@@ -103,17 +123,16 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 $response = curl_exec($ch);
 curl_close($ch);
 
-$result = json_decode($response, true);
+$data = json_decode($response, true);
 
-if (!isset($result["choices"][0]["message"]["content"])) {
-    enviarMensagem($chat_id, "❌ Erro na IA:\n" . print_r($result, true), $telegram_token);
-    exit;
-}
+$resposta = $data["candidates"][0]["content"]["parts"][0]["text"] ?? "⚠️ Os guias estão em silêncio agora...";
 
-$resposta = $result["choices"][0]["message"]["content"];
+// ================= ENVIA AO TELEGRAM =================
+
 enviarMensagem($chat_id, $resposta, $telegram_token);
 
-// ================= FUNÇÃO =================
-function enviarMensagem($chat_id, $texto, $token) {
-    file_get_contents("https://api.telegram.org/bot{$token}/sendMessage?chat_id={$chat_id}&text=" . urlencode($texto));
+// ================= FUNÇÃO TELEGRAM =================
+
+function enviarMensagem($chat_id, $texto, $token){
+    file_get_contents("https://api.telegram.org/bot{$token}/sendMessage?chat_id={$chat_id}&text=".urlencode($texto)."&parse_mode=Markdown");
 }
