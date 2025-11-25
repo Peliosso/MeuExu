@@ -28,7 +28,7 @@ function enviarMensagem($chat_id, $texto, $token) {
 if ($message == "/start" || $message == "/menu") {
     $texto = "🔮 *Guia Espiritual Online - Bem-vindo, $user_name!* 🔮
 
-Use /perguntar (sua dúvida) para receber orientação espiritual da Umbanda via IA.
+Envie qualquer mensagem e receba orientação espiritual da Umbanda via IA.
 Também disponível:
 /testkey - Checar se a Groq Key está funcionando.
 ";
@@ -46,53 +46,43 @@ if ($message == "/testkey") {
     exit;
 }
 
-// ================== COMANDO /PERGUNTAR ==================
-if (stripos($message, "/perguntar") === 0) {
-    if (!$groq_key) {
-        enviarMensagem($chat_id, "⚠️ Groq Key não encontrada! Configure no Render.", $telegram_token);
-        exit;
-    }
+// ================== RESPOSTA AUTOMÁTICA PARA QUALQUER MENSAGEM ==================
+if (!$groq_key) {
+    enviarMensagem($chat_id, "⚠️ Groq Key não encontrada! Configure no Render.", $telegram_token);
+    exit;
+}
 
-    $pergunta = trim(substr($message, 11)); // remove "/perguntar "
-    if (!$pergunta) {
-        enviarMensagem($chat_id, "⚠️ Filho, escreva sua pergunta após /perguntar.", $telegram_token);
-        exit;
-    }
-
-    // ======== Prompt da personalidade do bot ========
-    $system_prompt = "
+// ======== Prompt da personalidade do bot ========
+$system_prompt = "
 Você é um Guia Espiritual da Umbanda, com linguagem respeitosa, firme e sábia,
 mas com um toque malandro, como um Exu velho experiente, que conhece os caminhos da vida.
 Dê respostas espirituais e de orientação, sem incentivar vingança ou manipulação.
 ";
 
-    // ======== Requisição para Groq ========
-    $payload = [
-        "model" => "mixtral", // modelo do Groq
-        "prompt" => $system_prompt . "\nUsuário: " . $pergunta . "\nGuia:",
-        "max_tokens" => 300,
-        "temperature" => 0.85
-    ];
+// ======== Requisição para Groq ========
+$payload = [
+    "model" => "llama-3.3-70b-versatile", // modelo Groq usado no teste
+    "messages" => [
+        ["role"=>"system","content"=>$system_prompt],
+        ["role"=>"user","content"=>$message]
+    ],
+    "max_completion_tokens" => 300,
+    "temperature" => 0.85
+];
 
-    $ch = curl_init("https://api.groq.com/v1/completions");
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        "Content-Type: application/json",
-        "Authorization: Bearer {$groq_key}"
-    ]);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+$ch = curl_init("https://api.groq.com/openai/v1/chat/completions");
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "Content-Type: application/json",
+    "Authorization: Bearer {$groq_key}"
+]);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 
-    $response = curl_exec($ch);
-    curl_close($ch);
+$response = curl_exec($ch);
+curl_close($ch);
 
-    $result = json_decode($response, true);
-    $resposta = $result["choices"][0]["text"] ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
+$result = json_decode($response, true);
+$resposta = $result["choices"][0]["message"]["content"] ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
 
-    enviarMensagem($chat_id, $resposta, $telegram_token);
-    exit;
-}
-
-// ================== MENSAGEM PADRÃO ==================
-$resposta = "⚠️ Filho, comando não reconhecido. Use /start ou /perguntar (sua dúvida).";
 enviarMensagem($chat_id, $resposta, $telegram_token);
