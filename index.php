@@ -2,7 +2,7 @@
 
 // ================== CONFIGURAÇÃO ==================
 $telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
-$openai_key     = getenv('OPENAI_KEY'); // Key da OpenAI
+$groq_key       = getenv('GROQ_KEY'); // Key do Groq (variável de ambiente no Render)
 
 // ================== RECEBE UPDATE ==================
 $update = json_decode(file_get_contents("php://input"), true);
@@ -30,17 +30,17 @@ if ($message == "/start" || $message == "/menu") {
 
 Use /perguntar (sua dúvida) para receber orientação espiritual da Umbanda via IA.
 Também disponível:
-/testkey - Checar se a OpenAI Key está funcionando.
+/testkey - Checar se a Groq Key está funcionando.
 ";
     enviarMensagem($chat_id, $texto, $telegram_token);
     exit;
 }
 
 if ($message == "/testkey") {
-    if ($openai_key) {
-        $resposta = "✅ OpenAI Key encontrada!\nValor parcial: " . substr($openai_key,0,10) . "...";
+    if ($groq_key) {
+        $resposta = "✅ Groq Key encontrada!\nValor parcial: " . substr($groq_key,0,10) . "...";
     } else {
-        $resposta = "⚠️ OpenAI Key não encontrada! Configure no Render.";
+        $resposta = "⚠️ Groq Key não encontrada! Configure no Render.";
     }
     enviarMensagem($chat_id, $resposta, $telegram_token);
     exit;
@@ -48,8 +48,8 @@ if ($message == "/testkey") {
 
 // ================== COMANDO /PERGUNTAR ==================
 if (stripos($message, "/perguntar") === 0) {
-    if (!$openai_key) {
-        enviarMensagem($chat_id, "⚠️ OpenAI Key não encontrada! Configure no Render.", $telegram_token);
+    if (!$groq_key) {
+        enviarMensagem($chat_id, "⚠️ Groq Key não encontrada! Configure no Render.", $telegram_token);
         exit;
     }
 
@@ -66,20 +66,18 @@ mas com um toque malandro, como um Exu velho experiente, que conhece os caminhos
 Dê respostas espirituais e de orientação, sem incentivar vingança ou manipulação.
 ";
 
-    // ======== Requisição para OpenAI ========
+    // ======== Requisição para Groq ========
     $payload = [
-        "model" => "gpt-3.5-turbo",
-        "messages" => [
-            ["role"=>"system", "content"=>$system_prompt],
-            ["role"=>"user", "content"=>$pergunta]
-        ],
+        "model" => "mixtral", // modelo do Groq
+        "prompt" => $system_prompt . "\nUsuário: " . $pergunta . "\nGuia:",
+        "max_tokens" => 300,
         "temperature" => 0.85
     ];
 
-    $ch = curl_init("https://api.openai.com/v1/chat/completions");
+    $ch = curl_init("https://api.groq.com/v1/completions");
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         "Content-Type: application/json",
-        "Authorization: Bearer {$openai_key}"
+        "Authorization: Bearer {$groq_key}"
     ]);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -89,7 +87,7 @@ Dê respostas espirituais e de orientação, sem incentivar vingança ou manipul
     curl_close($ch);
 
     $result = json_decode($response, true);
-    $resposta = $result["choices"][0]["message"]["content"] ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
+    $resposta = $result["choices"][0]["text"] ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
 
     enviarMensagem($chat_id, $resposta, $telegram_token);
     exit;
