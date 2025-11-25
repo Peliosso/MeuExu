@@ -1,156 +1,41 @@
 <?php
+// ================== CONFIGURAÇÃO ==================
+$telegram_token = getenv('TELEGRAM_TOKEN'); // Token do bot Telegram
+$gemini_key = getenv('GEMINI_KEY');         // Token Gemini API
 
-// ================= CONFIGURAÇÕES =================
+// ================== RECEBE UPDATE ==================
+$content = file_get_contents("php://input");
+$update = json_decode($content, true);
 
-$telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
-$gemini_key     = "AIzaSyAYbLaedTJ-LLsAJsWVfJlDSJTmygQlsJQ";
+if(isset($update['message'])){
+    $chat_id = $update['message']['chat']['id'];
+    $text = $update['message']['text'];
 
-// ================= RECEBE UPDATE =================
+    // ================== PROMPT DA IA ==================
+    // Personalidade: Preto Velho, sábio, malandro, bem humorado, conselhos espirituais
+    $prompt = <<<EOT
+Você é um Preto Velho da Umbanda, malandro e sábio. Responda de forma bem-humorada, com conselhos espirituais, e de acordo com a tradição da Umbanda. Sempre ofereça orientação com paciência e carinho.  
+Mensagem do humano: "$text"
+Resposta do Preto Velho:
+EOT;
 
-$update = json_decode(file_get_contents("php://input"), true);
-if (!$update) exit;
+    // ================== CHAMA GEMINI ==================
+    $ch = curl_init("https://api.anthropic.com/v1/complete");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Content-Type: application/json",
+        "x-api-key: $gemini_key"
+    ]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+        "model" => "gemini-1.3",
+        "prompt" => $prompt,
+        "max_tokens_to_sample" => 500
+    ]));
 
-$message   = $update["message"]["text"] ?? "";
-$chat_id   = $update["message"]["chat"]["id"] ?? "";
-$user_name = $update["message"]["from"]["first_name"] ?? "filho";
+    $response = curl_exec($ch);
+    $resp_json = json_decode($response, true);
+    $reply = $resp_json['completion'] ?? "Desculpe, não consegui entender direito, meu filho. Tente de novo com outras palavras.";
 
-if (!$message || !$chat_id) exit;
-
-// ================= PERSONALIDADE ESPIRITUAL =================
-
-$system_prompt = "
-Você é um Guia Espiritual da Umbanda, com linguagem respeitosa, firme e sábia,
-com tom de Exu velho experiente, protetor e conselheiro.
-
-Estilo:
-- Linguagem espiritual profunda e acolhedora
-- Tom firme, mas humilde
-- Conselheiro sábio e protetor
-
-Você PODE:
-- Ensinar banhos, rezas, proteção, limpeza espiritual
-- Explicar fundamentos da Umbanda
-- Orientar espiritualmente
-
-Você NÃO PODE:
-- Incentivar vingança
-- Ensinar ataques espirituais
-- Fazer demandas contra terceiros
-
-Sempre conduza para caminhos de luz, proteção e equilíbrio.
-";
-
-// ================= MENU =================
-
-if ($message == "/start" || $message == "/menu") {
-
-$menu = "
-🔮 *Guia Espiritual Online - Seja Bem-vindo, $user_name* 🔮
-
-Sou teu guardião espiritual digital.
-
-📜 Comandos:
-/banho  
-/protecao  
-/limpeza  
-/significado  
-/demanda  
-/exu  
-/orientacao  
-/faq  
-
-Ou fale comigo livremente, filho ⚜️
-";
-
-enviarMensagem($chat_id, $menu, $telegram_token);
-exit;
-}
-
-// ================= FILTRO =================
-
-$proibidos = ['matar','vingar','castigar','destruir','arruinar','fazer sofrer'];
-
-foreach ($proibidos as $p) {
-    if (stripos($message, $p) !== false) {
-        enviarMensagem($chat_id,
-        "⚠️ Espiritualidade não é arma, filho.  
-Posso te guiar na proteção e fortalecimento espiritual.",
-        $telegram_token);
-        exit;
-    }
-}
-
-// ================= COMANDOS =================
-
-$comandos_base = [
-"/banho" => "Explique banhos espirituais conforme o problema do consulente",
-"/protecao" => "Ensine um ritual poderoso de proteção espiritual",
-"/limpeza" => "Explique limpeza energética passo a passo",
-"/significado" => "Interprete sinais e sonhos espiritualmente",
-"/demanda" => "Explique como se proteger espiritualmente",
-"/exu" => "Explique sobre Exu e Pombagira",
-"/orientacao" => "Dê um conselho espiritual profundo",
-"/faq" => "Responda dúvidas sobre Umbanda"
-];
-
-foreach ($comandos_base as $cmd => $instrucao) {
-    if (stripos($message, $cmd) === 0) {
-        $message = $instrucao . ": " . str_replace($cmd, "", $message);
-    }
-}
-
-// ================= ENVIO PARA GEMINI =================
-
-$payload = [
-    "contents" => [
-        [
-            "parts" => [
-                ["text" => $system_prompt . "\n\nPergunta do consulente: " . $message]
-            ]
-        ]
-    ],
-    "generationConfig" => [
-        "temperature" => 0.7,
-        "maxOutputTokens" => 1024
-    ]
-];
-
-$url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=".$gemini_key;
-
-$ch = curl_init($url);
-curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json"]);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-
-$response = curl_exec($ch);
-curl_close($ch);
-
-$data = json_decode($response, true);
-
-// ================= DEBUG =================
-
-if (!isset($data["candidates"][0]["content"]["parts"][0]["text"])) {
-    enviarMensagem($chat_id,
-    "❌ ERRO GEMINI:\n".print_r($data,true),
-    $telegram_token);
-    exit;
-}
-
-$resposta = $data["candidates"][0]["content"]["parts"][0]["text"];
-
-// ================= ENVIA AO TELEGRAM =================
-
-enviarMensagem($chat_id, $resposta, $telegram_token);
-
-// ================= FUNÇÃO TELEGRAM =================
-
-function enviarMensagem($chat_id, $texto, $token){
-    $url = "https://api.telegram.org/bot{$token}/sendMessage";
-    $params = [
-        'chat_id' => $chat_id,
-        'text' => $texto,
-        'parse_mode' => 'Markdown'
-    ];
-    file_get_contents($url . "?" . http_build_query($params));
+    // ================== ENVIA RESPOSTA PARA TELEGRAM ==================
+    file_get_contents("https://api.telegram.org/bot$telegram_token/sendMessage?chat_id=$chat_id&text=".urlencode($reply));
 }
