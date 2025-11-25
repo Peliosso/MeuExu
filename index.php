@@ -102,12 +102,12 @@ foreach ($comandos_base as $cmd => $instrucao) {
 // ================= ENVIO PARA IA =================
 
 $payload = [
-    "model" => "gpt-4.1-mini",
+    "model" => "gpt-4o-mini",
     "messages" => [
         ["role" => "system", "content" => $system_prompt],
         ["role" => "user", "content" => $message]
     ],
-    "temperature" => 0.85
+    "temperature" => 0.8
 ];
 
 $ch = curl_init("https://api.openai.com/v1/chat/completions");
@@ -120,10 +120,22 @@ curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 
 $response = curl_exec($ch);
+
+if ($response === false) {
+    enviarMensagem($chat_id, "❌ Erro de conexão com os guias digitais.", $telegram_token);
+    exit;
+}
+
 curl_close($ch);
 
 $result = json_decode($response, true);
-$resposta = $result["choices"][0]["message"]["content"] ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
+
+if (!isset($result["choices"][0]["message"]["content"])) {
+    enviarMensagem($chat_id, "⚠️ Energia instável entre os planos. Tente novamente em instantes.", $telegram_token);
+    exit;
+}
+
+$resposta = $result["choices"][0]["message"]["content"]; ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
 
 enviarMensagem($chat_id, $resposta, $telegram_token);
 
