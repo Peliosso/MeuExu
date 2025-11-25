@@ -1,19 +1,19 @@
 <?php
-$openai_key = getenv('OPENAI_KEY');
+$groq_key = getenv('GROQ_KEY'); // sua chave do Groq
+
+$prompt = "Você é um Guia Espiritual da Umbanda.\nPergunta: Qual é o melhor banho espiritual?\nGuia:";
 
 $payload = [
-    "model" => "gpt-3.5-turbo",
-    "messages" => [
-        ["role"=>"system","content"=>"Você é um Guia Espiritual da Umbanda."],
-        ["role"=>"user","content"=>"Qual é o melhor banho espiritual?"]
-    ],
+    "model" => "mixtral",   // modelo do Groq
+    "prompt" => $prompt,
+    "max_tokens" => 300,
     "temperature" => 0.85
 ];
 
-$ch = curl_init("https://api.openai.com/v1/chat/completions");
+$ch = curl_init("https://api.groq.com/v1/completions");
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     "Content-Type: application/json",
-    "Authorization: Bearer {$openai_key}"
+    "Authorization: Bearer {$groq_key}"
 ]);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
