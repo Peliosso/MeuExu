@@ -2,32 +2,28 @@
 
 $telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
 
-// BUSCA DO TOKEN VIA API EXTERNA
-function buscarTokenRemoto($url) {
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-    $response = curl_exec($ch);
-
-    if (curl_errno($ch)) {
-        return null;
-    }
-
-    curl_close($ch);
-    return $response;
-}
-
-$token_url = "https://meuexu.rf.gd/token.json";
-$respostaToken = buscarTokenRemoto($token_url);
-
-$dados_token = json_decode($respostaToken, true);
-$openai_key = $dados_token['token'] ?? '';
+// ================= BUSCA TOKEN VIA RENTR Y =================
+$token_url = "https://rentry.co/MeuExu/raw"; // <-- COLE AQUI SEU LINK RAW
+$openai_key = trim(file_get_contents($token_url));
 
 if (!$openai_key) {
-    enviarMensagem($chat_id ?? '0', "❌ ERRO: Não foi possível carregar token remoto.", $telegram_token);
+    file_put_contents("erro_token.txt", "Falha ao carregar token IA");
     exit;
+}
+
+// ================= RECEBE UPDATE =================
+$update = json_decode(file_get_contents("php://input"), true);
+
+if (!$update) {
+    file_put_contents("erro_update.txt", "Update vazio");
+    exit;
+}
+
+$message   = $update["message"]["text"] ?? "";
+$chat_id   = $update["message"]["chat"]["id"] ?? "";
+$user_name = $update["message"]["from"]["first_name"] ?? "filho";
+
+if (!$message) exit;
 }
 
 if (!$openai_key) {
