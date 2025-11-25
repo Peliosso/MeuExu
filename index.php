@@ -1,14 +1,12 @@
 <?php
 
 // ================== CONFIGURAÇÃO ==================
-$telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA"; // Token do Telegram
-$openai_key     = getenv('OPENAI_KEY'); // Token da OpenAI (oculto no Render)
+$telegram_token = "8518979324:AAFMBBZ62q0V3z6OkmiL7VsWNEYZOp460JA";
+$openai_key     = getenv('OPENAI_KEY'); // Key da OpenAI
 
 // ================== RECEBE UPDATE ==================
 $update = json_decode(file_get_contents("php://input"), true);
-
-// ===== LOG PARA DEPURAÇÃO =====
-file_put_contents("log.txt", date('Y-m-d H:i:s') . " - Update recebido: " . json_encode($update) . "\n", FILE_APPEND);
+file_put_contents("log.txt", date('Y-m-d H:i:s') . " - Update: " . json_encode($update) . "\n", FILE_APPEND);
 
 $message = $update["message"]["text"] ?? "";
 $chat_id = $update["message"]["chat"]["id"] ?? "";
@@ -23,17 +21,16 @@ if (!$message) {
 function enviarMensagem($chat_id, $texto, $token) {
     $url = "https://api.telegram.org/bot{$token}/sendMessage?chat_id={$chat_id}&text=" . urlencode($texto) . "&parse_mode=Markdown";
     $res = file_get_contents($url);
-    file_put_contents("log.txt", date('Y-m-d H:i:s') . " - Mensagem enviada: {$texto}\nResposta Telegram: {$res}\n", FILE_APPEND);
+    file_put_contents("log.txt", date('Y-m-d H:i:s') . " - Enviado: {$texto}\nResposta Telegram: {$res}\n", FILE_APPEND);
 }
 
-// ================= COMANDOS ==================
+// ================== COMANDOS ==================
 if ($message == "/start" || $message == "/menu") {
     $texto = "🔮 *Guia Espiritual Online - Bem-vindo, $user_name!* 🔮
 
-Sou seu guia da Umbanda digital. Aqui você pode receber orientação espiritual.
-
-📜 *Comandos disponíveis:*
-/testkey - Verificar se a OpenAI Key foi encontrada
+Use /perguntar (sua dúvida) para receber orientação espiritual da Umbanda via IA.
+Também disponível:
+/testkey - Checar se a OpenAI Key está funcionando.
 ";
     enviarMensagem($chat_id, $texto, $telegram_token);
     exit;
@@ -41,14 +38,63 @@ Sou seu guia da Umbanda digital. Aqui você pode receber orientação espiritual
 
 if ($message == "/testkey") {
     if ($openai_key) {
-        $resposta = "✅ OpenAI Key encontrada!\nValor parcial para debug: " . substr($openai_key,0,10) . "...";
+        $resposta = "✅ OpenAI Key encontrada!\nValor parcial: " . substr($openai_key,0,10) . "...";
     } else {
-        $resposta = "⚠️ OpenAI Key não encontrada! Configure a variável de ambiente no Render corretamente.";
+        $resposta = "⚠️ OpenAI Key não encontrada! Configure no Render.";
     }
     enviarMensagem($chat_id, $resposta, $telegram_token);
     exit;
 }
 
-// ================= MENSAGEM PADRÃO ==================
-$resposta = "⚠️ Filho, comando não reconhecido. Use /start para começar ou /testkey para checar a chave.";
+// ================== COMANDO /PERGUNTAR ==================
+if (stripos($message, "/perguntar") === 0) {
+    if (!$openai_key) {
+        enviarMensagem($chat_id, "⚠️ OpenAI Key não encontrada! Configure no Render.", $telegram_token);
+        exit;
+    }
+
+    $pergunta = trim(substr($message, 11)); // remove "/perguntar "
+    if (!$pergunta) {
+        enviarMensagem($chat_id, "⚠️ Filho, escreva sua pergunta após /perguntar.", $telegram_token);
+        exit;
+    }
+
+    // ======== Prompt da personalidade do bot ========
+    $system_prompt = "
+Você é um Guia Espiritual da Umbanda, com linguagem respeitosa, firme e sábia,
+mas com um toque malandro, como um Exu velho experiente, que conhece os caminhos da vida.
+Dê respostas espirituais e de orientação, sem incentivar vingança ou manipulação.
+";
+
+    // ======== Requisição para OpenAI ========
+    $payload = [
+        "model" => "gpt-3.5-turbo",
+        "messages" => [
+            ["role"=>"system", "content"=>$system_prompt],
+            ["role"=>"user", "content"=>$pergunta]
+        ],
+        "temperature" => 0.85
+    ];
+
+    $ch = curl_init("https://api.openai.com/v1/chat/completions");
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        "Content-Type: application/json",
+        "Authorization: Bearer {$openai_key}"
+    ]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $result = json_decode($response, true);
+    $resposta = $result["choices"][0]["message"]["content"] ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
+
+    enviarMensagem($chat_id, $resposta, $telegram_token);
+    exit;
+}
+
+// ================== MENSAGEM PADRÃO ==================
+$resposta = "⚠️ Filho, comando não reconhecido. Use /start ou /perguntar (sua dúvida).";
 enviarMensagem($chat_id, $resposta, $telegram_token);
