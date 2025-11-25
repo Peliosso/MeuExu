@@ -55,6 +55,7 @@ Sou seu guardião espiritual digital, pronto pra te orientar nos caminhos da fé
 /exu - Ensinos sobre Exu e Pombagira  
 /orientacao - Conselho espiritual pessoal  
 /faq - Dúvidas frequentes da Umbanda  
+/testkey - Verificar se a OpenAI Key foi encontrada  
 
 💬 Ou me conte sua situação livremente...
 Tô aqui pra te guiar, mas só pelo caminho da luz ⚜️
@@ -63,68 +64,14 @@ Tô aqui pra te guiar, mas só pelo caminho da luz ⚜️
     exit;
 }
 
-// ================= FILTRO ESPIRITUAL =================
-$proibidos = [
-    'matar', 'vingar', 'castigar', 'destruir pessoa',
-    'arruinar', 'fazer sofrer', 'amaciar pessoa', 'separar casal'
-];
-
-foreach ($proibidos as $palavra) {
-    if (stripos($message, $palavra) !== false) {
-        $resposta = "⚠️ Filho, cuidado com esse pensamento... espiritualidade não é arma.  
-Mas posso te ensinar proteção forte, limpeza e fortalecimento para que nada te atinja.  
-Quer aprender um ritual de defesa espiritual?";
-        enviarMensagem($chat_id, $resposta, $telegram_token);
-        exit;
+// ================= COMANDO DE TESTE DE CHAVE =================
+if ($message == "/testkey") {
+    $openai_key = getenv('OPENAI_KEY');
+    if ($openai_key) {
+        $resposta = "✅ OpenAI Key encontrada! Tudo certo para enviar mensagens à IA.";
+    } else {
+        $resposta = "⚠️ OpenAI Key não encontrada! Configure a variável de ambiente corretamente.";
     }
-}
-
-// ================= INSTRUÇÕES AUTOMÁTICAS POR COMANDO =================
-$comandos_base = [
-"/banho" => "Explique banhos espirituais conforme o problema do consulente",
-"/protecao" => "Ensine um ritual poderoso de proteção espiritual",
-"/limpeza" => "Explique limpeza energética passo a passo",
-"/significado" => "Interprete sinais e sonhos espiritualmente",
-"/demanda" => "Explique como perceber e se proteger de demandas",
-"/exu" => "Explique sobre Exu, Pombagira e seus caminhos",
-"/orientacao" => "Dê um conselho profundo espiritual",
-"/faq" => "Responda dúvidas sobre Umbanda"
-];
-
-foreach ($comandos_base as $cmd => $instrucao) {
-    if (stripos($message, $cmd) === 0) {
-        $message = $instrucao . ": " . str_replace($cmd, "", $message);
-    }
-}
-
-// ================= ENVIO PARA IA =================
-$payload = [
-    "model" => "gpt-3.5-turbo",
-    "messages" => [
-        ["role" => "system", "content" => $system_prompt],
-        ["role" => "user", "content" => $message]
-    ],
-    "temperature" => 0.85
-];
-
-$ch = curl_init("https://api.openai.com/v1/chat/completions");
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "Content-Type: application/json",
-    "Authorization: Bearer {$openai_key}"
-]);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-
-$response = curl_exec($ch);
-curl_close($ch);
-
-$result = json_decode($response, true);
-$resposta = $result["choices"][0]["message"]["content"] ?? "⚠️ Os guias estão silenciosos agora, tente novamente.";
-
-enviarMensagem($chat_id, $resposta, $telegram_token);
-
-// ================= FUNÇÃO TELEGRAM =================
-function enviarMensagem($chat_id, $texto, $token) {
-    file_get_contents("https://api.telegram.org/bot{$token}/sendMessage?chat_id={$chat_id}&text=" . urlencode($texto) . "&parse_mode=Markdown");
+    enviarMensagem($chat_id, $resposta, $telegram_token);
+    exit;
 }
