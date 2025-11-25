@@ -103,19 +103,14 @@ foreach ($comandos_base as $cmd => $instrucao) {
 
 $payload = [
     "model" => "gpt-4.1-mini",
-    "input" => [
-        [
-            "role" => "system",
-            "content" => $system_prompt
-        ],
-        [
-            "role" => "user",
-            "content" => $message
-        ]
+    "messages" => [
+        ["role" => "system", "content" => $system_prompt],
+        ["role" => "user", "content" => $message]
     ]
 ];
 
-$ch = curl_init("https://api.openai.com/v1/responses");
+$ch = curl_init("https://api.openai.com/v1/chat/completions");
+
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     "Content-Type: application/json",
     "Authorization: Bearer {$openai_key}"
@@ -129,12 +124,13 @@ curl_close($ch);
 
 $result = json_decode($response, true);
 
-if (!isset($result["output"][0]["content"][0]["text"])) {
-    enviarMensagem($chat_id, "⚠️ Os guias não conseguiram se manifestar agora.", $telegram_token);
+// DEBUG: caso continue erro, envie o erro real no Telegram
+if (!isset($result["choices"][0]["message"]["content"])) {
+    enviarMensagem($chat_id, "ERRO OPENAI:\n" . print_r($result, true), $telegram_token);
     exit;
 }
 
-$resposta = $result["output"][0]["content"][0]["text"];
+$resposta = $result["choices"][0]["message"]["content"];
 enviarMensagem($chat_id, $resposta, $telegram_token);
 
 // ================= FUNÇÃO TELEGRAM =================
